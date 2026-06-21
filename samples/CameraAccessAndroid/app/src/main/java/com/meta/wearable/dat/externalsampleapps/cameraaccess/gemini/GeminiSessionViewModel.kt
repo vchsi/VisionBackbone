@@ -11,6 +11,7 @@ import com.meta.wearable.dat.externalsampleapps.cameraaccess.settings.SettingsMa
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.OpenClawConnectionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolCallRouter
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolCallStatus
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolResult
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.stream.StreamingMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -40,6 +41,8 @@ data class GeminiUiState(
     val finalizedLines: List<TranscriptLine> = emptyList(),
     val toolCallStatus: ToolCallStatus = ToolCallStatus.Idle,
     val openClawConnectionState: OpenClawConnectionState = OpenClawConnectionState.NotConfigured,
+    val isDirectVoiceActive: Boolean = false,
+    val directVoiceResponse: String? = null,
 )
 
 class GeminiSessionViewModel(application: Application) : AndroidViewModel(application) {
@@ -48,6 +51,7 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
 
     private val geminiService = GeminiLiveService()
     private val deepgramService = DeepgramSTTService()
+    private val ttsService = DeepgramTTSService()
     private val batchService = DeepgramBatchService()
     private val imageAPIService = ImageAPIService(getApplication())
     private val openClawBridge = OpenClawBridge()
@@ -58,6 +62,8 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
     private var lastImageAPIFrameTime: Long = 0
     private var stateObservationJob: Job? = null
     private var silenceTimerJob: Job? = null
+    private var directVoiceJob: Job? = null
+    private var directVoiceStateJob: Job? = null
     private val accumulatedTurns = mutableListOf<SpeakerTurn>()
     private var currentTurnId = 0
     private var sessionStartTimeMs: Long = 0
@@ -71,6 +77,7 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
 
     fun startSession() {
         if (_uiState.value.isGeminiActive) return
+        if (_uiState.value.isDirectVoiceActive) stopDirectVoiceSession()
         sessionStartTimeMs = System.currentTimeMillis()
         _uiState.value = _uiState.value.copy(isGeminiActive = true)
 
@@ -241,6 +248,97 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun startDirectVoiceSession() {
+        if (!GeminiConfig.isOpenClawConfigured) return
+        if (_uiState.value.isDirectVoiceActive) return
+        if (_uiState.value.isGeminiActive) stopSession()
+
+        _uiState.value = _uiState.value.copy(isDirectVoiceActive = true)
+
+        directVoiceJob = viewModelScope.launch {
+            try {
+                audioManager.onAudioCaptured = { data -> deepgramService.sendAudio(data) }
+                audioManager.startCapture()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Mic capture failed: ${e.message}",
+                    isDirectVoiceActive = false,
+                )
+                return@launch
+            }
+
+            openClawBridge.checkConnection()
+            openClawBridge.resetSession()
+
+            if (GeminiConfig.isDeepgramConfigured) {
+                deepgramService.connect(GeminiConfig.deepgramAPIKey)
+                ttsService.connect(GeminiConfig.deepgramAPIKey) { data -> audioManager.playAudio(data) }
+            }
+
+            directVoiceStateJob = launch {
+                while (isActive) {
+                    delay(100)
+                    _uiState.value = _uiState.value.copy(
+                        toolCallStatus = openClawBridge.lastToolCallStatus.value,
+                        openClawConnectionState = openClawBridge.connectionState.value,
+                    )
+                }
+            }
+
+            deepgramService.transcript.collect { t ->
+                if (!_uiState.value.isDirectVoiceActive) return@collect
+                if (t == null) return@collect
+                if (t.isFinal) {
+                    val line = TranscriptLine(
+                        speaker = t.speaker,
+                        text = t.text,
+                        source = TranscriptSource.STREAMING_PROVISIONAL,
+                        turnId = 0,
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        finalizedLines = _uiState.value.finalizedLines + line,
+                        pendingSegment = null,
+                        pendingSegmentSpeaker = null,
+                    )
+                    if (t.text.isNotBlank()) {
+                        val result = openClawBridge.delegateTask(t.text)
+                        if (result is ToolResult.Success) {
+                            _uiState.value = _uiState.value.copy(directVoiceResponse = result.result)
+                            if (result.result.isNotBlank()) {
+                                ttsService.speak(result.result)
+                            }
+                        }
+                    }
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        pendingSegment = t.text,
+                        pendingSegmentSpeaker = t.speaker,
+                    )
+                }
+            }
+        }
+    }
+
+    fun stopDirectVoiceSession() {
+        if (!_uiState.value.isDirectVoiceActive) return
+        directVoiceStateJob?.cancel()
+        directVoiceStateJob = null
+        directVoiceJob?.cancel()
+        directVoiceJob = null
+        audioManager.stopCapture()
+        deepgramService.disconnect()
+        ttsService.disconnect()
+        _uiState.value = _uiState.value.copy(
+            isDirectVoiceActive = false,
+            directVoiceResponse = null,
+            finalizedLines = emptyList(),
+            pendingSegment = null,
+            pendingSegmentSpeaker = null,
+            toolCallStatus = ToolCallStatus.Idle,
+            openClawConnectionState = OpenClawConnectionState.NotConfigured,
+        )
+    }
+
     fun stopSession() {
         silenceTimerJob?.cancel()
         silenceTimerJob = null
@@ -286,5 +384,6 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
     override fun onCleared() {
         super.onCleared()
         stopSession()
+        stopDirectVoiceSession()
     }
 }

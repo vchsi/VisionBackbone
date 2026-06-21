@@ -27,7 +27,7 @@ object GeminiConfig {
         "wss://api.deepgram.com/v1/listen" +
         "?model=nova-3" +
         "&encoding=linear16" +
-        "&sample_rate=${INPUT_AUDIO_SAMPLE_RATE}" +
+    "&sample_rate=${INPUT_AUDIO_SAMPLE_RATE}" +
         "&channels=${AUDIO_CHANNELS}" +
         "&interim_results=true" +
         "&diarize=true" +
@@ -46,6 +46,12 @@ object GeminiConfig {
         "&diarize_model=latest" +
         "&smart_format=true" +
         "&punctuate=true"
+
+    const val DEEPGRAM_TTS_WEBSOCKET_URL =
+        "wss://api.deepgram.com/v1/speak" +
+        "?model=aura-asteria-en" +
+        "&encoding=linear16" +
+        "&sample_rate=${OUTPUT_AUDIO_SAMPLE_RATE}"
 
     val deepgramAPIKey: String
         get() = SettingsManager.deepgramAPIKey

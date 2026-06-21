@@ -54,13 +54,15 @@ fun GeminiOverlay(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Transcripts — Deepgram lines (provisional → finalized) + AI output transcription
-        if (uiState.finalizedLines.isNotEmpty() || uiState.pendingSegment != null || uiState.aiTranscript.isNotEmpty()) {
+        // Transcripts — Deepgram lines (provisional → finalized) + AI output + Direct Voice response
+        if (uiState.finalizedLines.isNotEmpty() || uiState.pendingSegment != null
+                || uiState.aiTranscript.isNotEmpty() || uiState.directVoiceResponse != null) {
             TranscriptView(
                 finalizedLines = uiState.finalizedLines,
                 pendingSegment = uiState.pendingSegment,
                 pendingSegmentSpeaker = uiState.pendingSegmentSpeaker,
                 aiTranscript = uiState.aiTranscript,
+                directVoiceResponse = uiState.directVoiceResponse,
             )
         }
 
@@ -147,6 +149,7 @@ fun TranscriptView(
     pendingSegment: String?,
     pendingSegmentSpeaker: Int?,
     aiTranscript: String,
+    directVoiceResponse: String? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -183,6 +186,15 @@ fun TranscriptView(
                 color = Color.White,
                 fontSize = 13.sp,
                 maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (directVoiceResponse != null) {
+            Text(
+                text = "Agent: $directVoiceResponse",
+                color = Color(0xFF80D8FF),
+                fontSize = 13.sp,
+                maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
             )
         }

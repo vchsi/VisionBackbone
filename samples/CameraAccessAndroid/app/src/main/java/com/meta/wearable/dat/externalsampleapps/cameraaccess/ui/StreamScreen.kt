@@ -36,7 +36,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.meta.wearable.dat.camera.types.StreamSessionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.R
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiConfig
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiConnectionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiSessionViewModel
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.OpenClawConnectionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.stream.StreamViewModel
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.stream.StreamingMode
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.wearables.WearablesViewModel
@@ -91,6 +94,9 @@ fun StreamScreen(
             if (geminiUiState.isGeminiActive) {
                 geminiViewModel.stopSession()
             }
+            if (geminiUiState.isDirectVoiceActive) {
+                geminiViewModel.stopDirectVoiceSession()
+            }
             if (webrtcUiState.isActive) {
                 webrtcViewModel.stopSession()
             }
@@ -132,8 +138,8 @@ fun StreamScreen(
         Box(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             // Top overlays (below status bar)
             Column(modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(top = 8.dp)) {
-                // Gemini overlay
-                if (geminiUiState.isGeminiActive) {
+                // Gemini overlay (AI mode or Direct Voice mode)
+                if (geminiUiState.isGeminiActive || geminiUiState.isDirectVoiceActive) {
                     GeminiOverlay(uiState = geminiUiState)
                 }
 
@@ -161,6 +167,18 @@ fun StreamScreen(
                     }
                 },
                 isAIActive = geminiUiState.isGeminiActive,
+                onToggleDirectVoice = {
+                    if (geminiUiState.isDirectVoiceActive) {
+                        geminiViewModel.stopDirectVoiceSession()
+                    } else {
+                        geminiViewModel.startDirectVoiceSession()
+                    }
+                },
+                isDirectVoiceActive = geminiUiState.isDirectVoiceActive,
+                showDirectVoiceButton = geminiUiState.openClawConnectionState !is OpenClawConnectionState.NotConfigured
+                        || GeminiConfig.isOpenClawConfigured,
+                isAIConnecting = geminiUiState.connectionState is GeminiConnectionState.Connecting
+                        || geminiUiState.connectionState is GeminiConnectionState.SettingUp,
                 onToggleLive = {
                     if (webrtcUiState.isActive) {
                         webrtcViewModel.stopSession()
