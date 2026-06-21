@@ -1,0 +1,18 @@
+export default {
+  ".csv": "csv",
+  ".coffee": "coffeescript",
+  ".hbs": "handlebars",
+  ".json": "json",
+  ".json5": "json5",
+  ".jsx": "react",
+  ".marko": "marko",
+  ".svelte": "svelte",
+  ".solid": "solid",
+  ".txt": "text",
+  ".toml": "toml",
+  ".ts": "typescript",
+  ".vue": "vue",
+  ".wasm": "wasm",
+  ".xml": "xml",
+  ".yaml": "yaml",
+};

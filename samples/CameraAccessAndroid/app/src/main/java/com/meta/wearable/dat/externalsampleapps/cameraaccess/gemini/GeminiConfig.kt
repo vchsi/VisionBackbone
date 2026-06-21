@@ -12,7 +12,8 @@ object GeminiConfig {
     const val AUDIO_CHANNELS = 1
     const val AUDIO_BITS_PER_SAMPLE = 16
 
-    const val VIDEO_FRAME_INTERVAL_MS = 1000L
+    const val DISPLAY_FRAME_INTERVAL_MS = 200L
+    const val IMAGE_API_FRAME_INTERVAL_MS = 1000L
     const val VIDEO_JPEG_QUALITY = 50
 
     val systemInstruction: String
@@ -20,6 +21,34 @@ object GeminiConfig {
 
     val apiKey: String
         get() = SettingsManager.geminiAPIKey
+
+    // Deepgram STT
+    const val DEEPGRAM_WEBSOCKET_URL =
+        "wss://api.deepgram.com/v1/listen" +
+        "?encoding=linear16" +
+        "&sample_rate=${INPUT_AUDIO_SAMPLE_RATE}" +
+        "&channels=${AUDIO_CHANNELS}" +
+        "&interim_results=true" +
+        "&endpointing=300" +
+        "&diarize=true" +
+        "&smart_format=true" +
+        "&punctuate=true"
+
+    // diarize_model=latest is batch-only; diarize=true is mutually exclusive with it on batch
+    const val DEEPGRAM_BATCH_URL =
+        "https://api.deepgram.com/v1/listen" +
+        "?encoding=linear16" +
+        "&sample_rate=${INPUT_AUDIO_SAMPLE_RATE}" +
+        "&channels=${AUDIO_CHANNELS}" +
+        "&diarize_model=latest" +
+        "&smart_format=true" +
+        "&punctuate=true"
+
+    val deepgramAPIKey: String
+        get() = SettingsManager.deepgramAPIKey
+
+    val isDeepgramConfigured: Boolean
+        get() = deepgramAPIKey.isNotEmpty() && deepgramAPIKey != "YOUR_DEEPGRAM_API_KEY"
 
     val openClawHost: String
         get() = SettingsManager.openClawHost

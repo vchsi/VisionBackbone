@@ -44,6 +44,14 @@ object SettingsManager {
         get() = prefs.getString("webrtcSignalingURL", null) ?: Secrets.webrtcSignalingURL
         set(value) = prefs.edit().putString("webrtcSignalingURL", value).apply()
 
+    var deepgramAPIKey: String
+        get() = prefs.getString("deepgramAPIKey", null) ?: Secrets.deepgramAPIKey
+        set(value) = prefs.edit().putString("deepgramAPIKey", value).apply()
+
+    var imageAPIEndpointURL: String
+        get() = prefs.getString("imageAPIEndpointURL", null) ?: Secrets.imageAPIEndpointURL
+        set(value) = prefs.edit().putString("imageAPIEndpointURL", value).apply()
+
     var videoStreamingEnabled: Boolean
         get() = prefs.getBoolean("videoStreamingEnabled", true)
         set(value) = prefs.edit().putBoolean("videoStreamingEnabled", value).apply()

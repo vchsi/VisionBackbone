@@ -29,7 +29,8 @@ object WebRTCConfig {
         get() = SettingsManager.webrtcSignalingURL
 
     val isConfigured: Boolean
-        get() = signalingServerURL.isNotBlank() && signalingServerURL.startsWith("wss://")
+        get() = signalingServerURL.isNotBlank() &&
+                (signalingServerURL.startsWith("wss://") || signalingServerURL.startsWith("ws://"))
 
     /**
      * Fetch TURN credentials from the credential server, falling back to STUN-only if unavailable.

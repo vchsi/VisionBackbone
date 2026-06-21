@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiConnectionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiUiState
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.TranscriptLine
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.TranscriptSource
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.OpenClawConnectionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolCallStatus
 
@@ -52,10 +54,12 @@ fun GeminiOverlay(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Transcripts
-        if (uiState.userTranscript.isNotEmpty() || uiState.aiTranscript.isNotEmpty()) {
+        // Transcripts — Deepgram lines (provisional → finalized) + AI output transcription
+        if (uiState.finalizedLines.isNotEmpty() || uiState.pendingSegment != null || uiState.aiTranscript.isNotEmpty()) {
             TranscriptView(
-                userTranscript = uiState.userTranscript,
+                finalizedLines = uiState.finalizedLines,
+                pendingSegment = uiState.pendingSegment,
+                pendingSegmentSpeaker = uiState.pendingSegmentSpeaker,
                 aiTranscript = uiState.aiTranscript,
             )
         }
@@ -139,7 +143,9 @@ fun StatusPill(
 
 @Composable
 fun TranscriptView(
-    userTranscript: String,
+    finalizedLines: List<TranscriptLine>,
+    pendingSegment: String?,
+    pendingSegmentSpeaker: Int?,
     aiTranscript: String,
     modifier: Modifier = Modifier,
 ) {
@@ -148,12 +154,26 @@ fun TranscriptView(
             .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        if (userTranscript.isNotEmpty()) {
+        // Show last 3 finalized lines; BATCH_FINALIZED at full weight, STREAMING_PROVISIONAL lighter
+        for (line in finalizedLines.takeLast(3)) {
+            val alpha = if (line.source == TranscriptSource.BATCH_FINALIZED) 0.7f else 0.5f
+            val prefix = if (line.speaker != null) "S${line.speaker}: " else ""
             Text(
-                text = userTranscript,
-                color = Color.White.copy(alpha = 0.6f),
+                text = "$prefix${line.text}",
+                color = Color.White.copy(alpha = alpha),
                 fontSize = 13.sp,
-                maxLines = 2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        // Pending segment — current interim result, lightest weight
+        if (pendingSegment != null) {
+            val prefix = if (pendingSegmentSpeaker != null) "S${pendingSegmentSpeaker}: " else ""
+            Text(
+                text = "$prefix$pendingSegment",
+                color = Color.White.copy(alpha = 0.35f),
+                fontSize = 13.sp,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }

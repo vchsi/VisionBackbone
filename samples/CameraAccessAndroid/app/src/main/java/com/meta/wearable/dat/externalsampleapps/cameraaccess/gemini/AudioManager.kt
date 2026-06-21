@@ -1,6 +1,8 @@
 package com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini
 
 import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -9,11 +11,16 @@ import android.media.MediaRecorder
 import android.util.Log
 import java.io.ByteArrayOutputStream
 
-class AudioManager {
+class AudioManager(application: Application) {
     companion object {
         private const val TAG = "AudioManager"
         private const val MIN_SEND_BYTES = 3200 // 100ms at 16kHz mono Int16 = 1600 frames * 2 bytes
+        private const val BLUETOOTH_SCO_TIMEOUT_MS = 3000L
+        private const val BLUETOOTH_SCO_POLL_MS = 100L
     }
+
+    private val sysAudioManager =
+        application.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
 
     var onAudioCaptured: ((ByteArray) -> Unit)? = null
 
@@ -28,6 +35,25 @@ class AudioManager {
     @SuppressLint("MissingPermission")
     fun startCapture() {
         if (isCapturing) return
+
+        // Route audio through the glasses' Bluetooth microphone if available.
+        // startBluetoothSco() is a no-op when no BT device is connected, so this is safe
+        // to call unconditionally — we proceed with the device mic on timeout.
+        // Note: API 31+ deprecated startBluetoothSco in favor of AudioRecord.setPreferredDevice,
+        // but that requires the SCO link to already be active anyway; this still works on API 31+.
+        @Suppress("DEPRECATION")
+        sysAudioManager.startBluetoothSco()
+        val deadline = System.currentTimeMillis() + BLUETOOTH_SCO_TIMEOUT_MS
+        @Suppress("DEPRECATION")
+        while (!sysAudioManager.isBluetoothScoOn && System.currentTimeMillis() < deadline) {
+            Thread.sleep(BLUETOOTH_SCO_POLL_MS)
+        }
+        @Suppress("DEPRECATION")
+        if (sysAudioManager.isBluetoothScoOn) {
+            Log.d(TAG, "Bluetooth SCO connected — using glasses microphone")
+        } else {
+            Log.w(TAG, "Bluetooth SCO not available — falling back to device microphone")
+        }
 
         val bufferSize = AudioRecord.getMinBufferSize(
             GeminiConfig.INPUT_AUDIO_SAMPLE_RATE,
@@ -135,6 +161,11 @@ class AudioManager {
         audioTrack?.release()
         audioTrack = null
 
+        @Suppress("DEPRECATION")
+        sysAudioManager.stopBluetoothSco()
+
         Log.d(TAG, "Audio capture stopped")
     }
 }
+
+

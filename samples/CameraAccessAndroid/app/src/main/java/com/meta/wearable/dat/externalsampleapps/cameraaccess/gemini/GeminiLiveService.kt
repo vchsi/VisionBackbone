@@ -46,14 +46,9 @@ class GeminiLiveService {
     var onTurnComplete: (() -> Unit)? = null
     var onInterrupted: (() -> Unit)? = null
     var onDisconnected: ((String?) -> Unit)? = null
-    var onInputTranscription: ((String) -> Unit)? = null
     var onOutputTranscription: ((String) -> Unit)? = null
     var onToolCall: ((GeminiToolCall) -> Unit)? = null
     var onToolCallCancellation: ((GeminiToolCallCancellation) -> Unit)? = null
-
-    // Latency tracking
-    private var lastUserSpeechEnd: Long = 0
-    private var responseLatencyLogged = false
 
     private var webSocket: WebSocket? = null
     private val sendExecutor = Executors.newSingleThreadExecutor()
@@ -244,7 +239,6 @@ class GeminiLiveService {
                         put("targetTokens", 80000)
                     })
                 })
-                put("inputAudioTranscription", JSONObject())
                 put("outputAudioTranscription", JSONObject())
             })
         }
@@ -314,11 +308,6 @@ class GeminiLiveService {
                                         val audioData = Base64.decode(base64Data, Base64.DEFAULT)
                                         if (!_isModelSpeaking.value) {
                                             _isModelSpeaking.value = true
-                                            if (lastUserSpeechEnd > 0 && !responseLatencyLogged) {
-                                                val latency = System.currentTimeMillis() - lastUserSpeechEnd
-                                                Log.d(TAG, "[Latency] ${latency}ms (user speech end -> first audio)")
-                                                responseLatencyLogged = true
-                                            }
                                         }
                                         onAudioReceived?.invoke(audioData)
                                     }
@@ -332,19 +321,7 @@ class GeminiLiveService {
 
                 if (serverContent.optBoolean("turnComplete", false)) {
                     _isModelSpeaking.value = false
-                    responseLatencyLogged = false
                     onTurnComplete?.invoke()
-                }
-
-                if (serverContent.has("inputTranscription")) {
-                    val transcription = serverContent.getJSONObject("inputTranscription")
-                    val transcriptText = transcription.optString("text", "")
-                    if (transcriptText.isNotEmpty()) {
-                        Log.d(TAG, "You: $transcriptText")
-                        lastUserSpeechEnd = System.currentTimeMillis()
-                        responseLatencyLogged = false
-                        onInputTranscription?.invoke(transcriptText)
-                    }
                 }
 
                 if (serverContent.has("outputTranscription")) {

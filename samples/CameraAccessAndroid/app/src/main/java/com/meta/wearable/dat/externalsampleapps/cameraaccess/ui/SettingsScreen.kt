@@ -43,6 +43,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     var geminiAPIKey by remember { mutableStateOf(SettingsManager.geminiAPIKey) }
+    var deepgramAPIKey by remember { mutableStateOf(SettingsManager.deepgramAPIKey) }
     var systemPrompt by remember { mutableStateOf(SettingsManager.geminiSystemPrompt) }
     var openClawHost by remember { mutableStateOf(SettingsManager.openClawHost) }
     var openClawPort by remember { mutableStateOf(SettingsManager.openClawPort.toString()) }
@@ -55,6 +56,7 @@ fun SettingsScreen(
 
     fun save() {
         SettingsManager.geminiAPIKey = geminiAPIKey.trim()
+        SettingsManager.deepgramAPIKey = deepgramAPIKey.trim()
         SettingsManager.geminiSystemPrompt = systemPrompt.trim()
         SettingsManager.openClawHost = openClawHost.trim()
         openClawPort.trim().toIntOrNull()?.let { SettingsManager.openClawPort = it }
@@ -67,6 +69,7 @@ fun SettingsScreen(
 
     fun reload() {
         geminiAPIKey = SettingsManager.geminiAPIKey
+        deepgramAPIKey = SettingsManager.deepgramAPIKey
         systemPrompt = SettingsManager.geminiSystemPrompt
         openClawHost = SettingsManager.openClawHost
         openClawPort = SettingsManager.openClawPort.toString()
@@ -105,6 +108,15 @@ fun SettingsScreen(
                 onValueChange = { geminiAPIKey = it },
                 label = "API Key",
                 placeholder = "Enter Gemini API key",
+            )
+
+            // Deepgram section
+            SectionHeader("Deepgram STT")
+            MonoTextField(
+                value = deepgramAPIKey,
+                onValueChange = { deepgramAPIKey = it },
+                label = "API Key",
+                placeholder = "Enter Deepgram API key (optional)",
             )
 
             SectionHeader("System Prompt")
