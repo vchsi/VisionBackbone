@@ -156,6 +156,8 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
                                     pendingSegment = null,
                                     pendingSegmentSpeaker = null,
                                 )
+                                // Deduplicate: skip if same text as either of last 2 accumulated turns
+                                if (accumulatedTurns.takeLast(2).any { it.text.trim() == t.text.trim() }) return@collect
                                 // Accumulate and reset the 25s silence timer
                                 val elapsedSecs = (System.currentTimeMillis() - sessionStartTimeMs) / 1000f
                                 accumulatedTurns.add(SpeakerTurn(
@@ -164,6 +166,7 @@ class GeminiSessionViewModel(application: Application) : AndroidViewModel(applic
                                     end = elapsedSecs,
                                     text = t.text,
                                     words = emptyList(),
+                                    wallClockMs = System.currentTimeMillis(),
                                 ))
                                 silenceTimerJob?.cancel()
                                 silenceTimerJob = viewModelScope.launch {

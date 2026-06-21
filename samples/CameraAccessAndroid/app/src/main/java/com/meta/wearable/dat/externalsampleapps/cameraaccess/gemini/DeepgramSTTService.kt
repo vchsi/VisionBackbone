@@ -120,11 +120,18 @@ class DeepgramSTTService {
             val isFinal = json.optBoolean("is_final", false)
             val confidence = first.optDouble("confidence", 0.0)
 
-            // Extract speaker from first word (streaming diarization returns per-word speaker)
+            // Extract majority speaker across all words (handles mid-segment speaker switches)
             val words = first.optJSONArray("words")
             val speaker: Int? = if (words != null && words.length() > 0) {
-                val w = words.getJSONObject(0)
-                if (w.has("speaker")) w.getInt("speaker") else null
+                val counts = mutableMapOf<Int, Int>()
+                for (i in 0 until words.length()) {
+                    val w = words.getJSONObject(i)
+                    if (w.has("speaker")) {
+                        val s = w.getInt("speaker")
+                        counts[s] = (counts[s] ?: 0) + 1
+                    }
+                }
+                counts.maxByOrNull { it.value }?.key
             } else null
 
             Log.d(TAG, "[${if (isFinal) "FINAL" else "interim"}] $transcript (conf=$confidence, spk=$speaker)")

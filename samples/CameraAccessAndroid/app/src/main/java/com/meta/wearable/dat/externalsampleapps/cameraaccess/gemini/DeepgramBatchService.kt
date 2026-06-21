@@ -24,6 +24,7 @@ data class SpeakerTurn(
     val end: Float,
     val text: String,
     val words: List<BatchWord>,
+    val wallClockMs: Long = 0L,
 )
 
 fun groupIntoSpeakerTurns(words: List<BatchWord>): List<SpeakerTurn> {

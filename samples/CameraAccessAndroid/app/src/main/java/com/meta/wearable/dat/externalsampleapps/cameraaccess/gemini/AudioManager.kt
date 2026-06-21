@@ -8,6 +8,8 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import android.util.Log
 import java.io.ByteArrayOutputStream
 
@@ -25,6 +27,8 @@ class AudioManager(application: Application) {
     var onAudioCaptured: ((ByteArray) -> Unit)? = null
 
     private var audioRecord: AudioRecord? = null
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
     private var audioTrack: AudioTrack? = null
     private var captureThread: Thread? = null
     @Volatile
@@ -61,13 +65,23 @@ class AudioManager(application: Application) {
             AudioFormat.ENCODING_PCM_16BIT
         )
 
+        // MIC source preserves natural gain and room audio; VOICE_COMMUNICATION applies
+        // aggressive noise suppression that attenuates softer/farther voices.
+        // AEC and NoiseSuppressor are attached explicitly below so we control them.
         audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.MIC,
             GeminiConfig.INPUT_AUDIO_SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
             bufferSize
         )
+
+        val sessionId = audioRecord!!.audioSessionId
+        // Echo cancellation: prevent Gemini's speaker output from bleeding into the mic
+        if (AcousticEchoCanceler.isAvailable()) {
+            echoCanceler = AcousticEchoCanceler.create(sessionId)?.also { it.enabled = true }
+        }
+        // Skip NoiseSuppressor — it reduces sensitivity to softer voices in noisy rooms
 
         audioTrack = AudioTrack.Builder()
             .setAudioAttributes(
@@ -152,6 +166,11 @@ class AudioManager(application: Application) {
                 onAudioCaptured?.invoke(chunk)
             }
         }
+
+        echoCanceler?.release()
+        echoCanceler = null
+        noiseSuppressor?.release()
+        noiseSuppressor = null
 
         audioRecord?.stop()
         audioRecord?.release()

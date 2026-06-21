@@ -14,7 +14,7 @@ object TranscriptSaver {
     fun save(context: Context, turns: List<SpeakerTurn>) {
         if (turns.isEmpty()) return
         val filename = "transcript_${System.currentTimeMillis()}.txt"
-        val content = turns.joinToString("\n") { "[${formatSeconds(it.start)}] Speaker ${it.speaker}: ${it.text}" }
+        val content = turns.joinToString("\n") { "[${it.wallClockMs}] Speaker ${it.speaker}: ${it.text}" }
             .toByteArray(Charsets.UTF_8)
 
         val values = ContentValues().apply {
@@ -46,8 +46,4 @@ object TranscriptSaver {
         }
     }
 
-    private fun formatSeconds(seconds: Float): String {
-        val total = seconds.toInt()
-        return "%02d:%02d".format(total / 60, total % 60)
-    }
 }

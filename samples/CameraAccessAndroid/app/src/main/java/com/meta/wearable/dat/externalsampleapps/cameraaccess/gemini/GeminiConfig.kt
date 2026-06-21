@@ -25,14 +25,17 @@ object GeminiConfig {
     // Deepgram STT
     const val DEEPGRAM_WEBSOCKET_URL =
         "wss://api.deepgram.com/v1/listen" +
-        "?encoding=linear16" +
+        "?model=nova-3" +
+        "&encoding=linear16" +
         "&sample_rate=${INPUT_AUDIO_SAMPLE_RATE}" +
         "&channels=${AUDIO_CHANNELS}" +
         "&interim_results=true" +
-        "&endpointing=300" +
         "&diarize=true" +
         "&smart_format=true" +
-        "&punctuate=true"
+        "&punctuate=true" +
+        "&eot_threshold=0.85" +
+        "&eot_timeout_ms=6500" +
+        "&filler_words=true"
 
     // diarize_model=latest is batch-only; diarize=true is mutually exclusive with it on batch
     const val DEEPGRAM_BATCH_URL =
